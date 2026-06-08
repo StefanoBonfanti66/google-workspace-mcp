@@ -1,0 +1,22 @@
+# Google Workspace MCP – local secrets & runtime
+client_secrets.json
+token_gmail.pickle
+
+# Gmail tokens per eventuali altri prefix
+token_*.pickle
+
+# Logs e allegati scaricati
+logs/
+attachments/
+
+# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc
+
+# Editor / vari
+*.log
+
+# Backup files
+*.bak
+*.bak.*
