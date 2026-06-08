@@ -193,7 +193,6 @@ def search_emails(query: str = "is:unread in:inbox", max_results: int = 10) -> l
                     "snippet": snippet,
                     "attachments_present": len(attachments) > 0,
                     "attachments_count": len(attachments),
-                    "attachments": attachments,
                     "body_preview": plain_text[:1000],
                 }
             )
