@@ -158,6 +158,50 @@ To view logs in real-time:
 Get-Content -Path "%APPDATA%\Claude\logs\mcp*.log" -Wait
 ```
 
+## Token Bootstrap (per aggiungere un account)
+
+### Comando rapido
+
+```bash
+cd ~/Scrivania/Progetti/google-workspace-mcp
+.venv/bin/python scripts/bootstrap_gmail_token.py --account info --force
+```
+
+### Parametri
+
+| Parametro | Default | Descrizione |
+|---|---|---|
+| `--account` | `info` | Etichetta account (es. `info`, `personal`) |
+| `--prefix` | `gmail` | Prefisso token (es. `gmail`, `contacts`) |
+| `--force` | — | Forza rigenerazione anche se token valido esiste |
+
+### Flusso
+
+1. Il server MCP usa `GMAIL_ACCOUNT=info` → cerca `token_gmail_info.pickle`
+2. Se non trovato, cade su `token_gmail.pickle` (legacy)
+3. Per creare/aggiornare un token: esegui lo script **da terminale (non OpenCode)**
+4. `run_local_server(port=0)` avvia un server locale, apre il browser, cattura il redirect
+5. Token salvato in `token_{prefix}_{account}.pickle`
+
+### Esempi
+
+```bash
+# Account info (di default)
+.venv/bin/python scripts/bootstrap_gmail_token.py
+
+# Account personale
+.venv/bin/python scripts/bootstrap_gmail_token.py --account personal
+
+# Forza rigenerazione
+.venv/bin/python scripts/bootstrap_gmail_token.py --account personal --force
+```
+
+### Troubleshooting
+
+- **`Invalid code verifier`**: hai usato un codice di autorizzazione con un'esecuzione diversa dello script. Rilancia con `--force` e usa l'URL appena generato.
+- **`Missing required parameter: redirect_uri`**: lo script ora usa `run_local_server()` che gestisce il redirect automaticamente. Assicurati di usare l'ultima versione.
+- **Browser non si apre**: `webbrowser.open()` usa `xdg-open` su Linux. Se non hai un ambiente desktop, apri manualmente l'URL stampato.
+
 ## Security Notes
 
 - All servers operate in read-only mode for their respective services
