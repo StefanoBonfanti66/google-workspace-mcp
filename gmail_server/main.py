@@ -46,6 +46,8 @@ from shared.auth import GoogleAuth
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.labels",
 ]
 CLIENT_SECRETS = PROJECT_ROOT / "client_secrets.json"
 
@@ -392,6 +394,103 @@ def download_attachment(message_id: str, attachment_id: str, filename: str | Non
         "message_id": message_id,
         "attachment_id": attachment_id,
     }
+
+
+@mcp.tool()
+def list_labels() -> list[dict[str, Any]]:
+    """List all Gmail labels (both system and user-created)."""
+    logger.info("list_labels called")
+    try:
+        service = get_gmail_service()
+        res = service.users().labels().list(userId="me").execute()
+        labels = res.get("labels", []) or []
+        logger.info("list_labels returned %s labels", len(labels))
+        return [
+            {
+                "id": lbl["id"],
+                "name": lbl["name"],
+                "type": lbl.get("type", ""),
+                "messagesTotal": lbl.get("messagesTotal", 0),
+                "messagesUnread": lbl.get("messagesUnread", 0),
+            }
+            for lbl in labels
+        ]
+    except Exception:
+        logger.exception("list_labels failed")
+        raise
+
+
+def _resolve_label_id(service, label_name: str) -> str:
+    """Resolve a label name to a Gmail label ID, creating it if not found."""
+    logger.info("Resolving label name=%r", label_name)
+
+    res = service.users().labels().list(userId="me").execute()
+    labels = res.get("labels", []) or []
+
+    for lbl in labels:
+        if lbl["name"] == label_name:
+            logger.info("Found existing label id=%s for name=%s", lbl["id"], label_name)
+            return lbl["id"]
+
+    logger.info("Label %r not found, creating it", label_name)
+    created = (
+        service.users()
+        .labels()
+        .create(userId="me", body={"name": label_name, "labelListVisibility": "labelShow", "messageListVisibility": "show"})
+        .execute()
+    )
+    logger.info("Created label id=%s for name=%s", created["id"], label_name)
+    return created["id"]
+
+
+@mcp.tool()
+def apply_label(message_id: str, label_name: str) -> dict[str, Any]:
+    """Apply a label to a Gmail message. Creates the label if it doesn't exist.
+
+    Args:
+        message_id: The Gmail message ID.
+        label_name: The label name (e.g. \"Follow-up\", \"Project X\").
+    """
+    logger.info("apply_label called message_id=%s label_name=%r", message_id, label_name)
+    try:
+        service = get_gmail_service()
+        label_id = _resolve_label_id(service, label_name)
+        service.users().messages().modify(
+            userId="me",
+            id=message_id,
+            body={"addLabelIds": [label_id]},
+        ).execute()
+        result = {"message_id": message_id, "label": label_name, "label_id": label_id}
+        logger.info("apply_label succeeded: %s", result)
+        return result
+    except Exception:
+        logger.exception("apply_label failed")
+        raise
+
+
+@mcp.tool()
+def remove_label(message_id: str, label_name: str) -> dict[str, Any]:
+    """Remove a label from a Gmail message.
+
+    Args:
+        message_id: The Gmail message ID.
+        label_name: The label name (e.g. \"Follow-up\", \"Project X\").
+    """
+    logger.info("remove_label called message_id=%s label_name=%r", message_id, label_name)
+    try:
+        service = get_gmail_service()
+        label_id = _resolve_label_id(service, label_name)
+        service.users().messages().modify(
+            userId="me",
+            id=message_id,
+            body={"removeLabelIds": [label_id]},
+        ).execute()
+        result = {"message_id": message_id, "label": label_name, "label_id": label_id}
+        logger.info("remove_label succeeded: %s", result)
+        return result
+    except Exception:
+        logger.exception("remove_label failed")
+        raise
 
 
 if __name__ == "__main__":
