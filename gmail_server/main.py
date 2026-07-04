@@ -43,7 +43,10 @@ from mcp.server.fastmcp import FastMCP
 
 from shared.auth import GoogleAuth
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+]
 CLIENT_SECRETS = PROJECT_ROOT / "client_secrets.json"
 
 logger.info("Using client secrets file: %s", CLIENT_SECRETS)
@@ -146,6 +149,130 @@ def _extract_plain_text(payload: dict[str, Any]) -> str:
             return text
 
     return ""
+
+
+def _build_message(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str | None = None,
+    bcc: str | None = None,
+    attachment_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a Gmail API message dict (raw base64url-encoded MIME)."""
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart()
+    msg["To"] = to
+    msg["Subject"] = subject
+    if cc:
+        msg["Cc"] = cc
+    if bcc:
+        msg["Bcc"] = bcc
+
+    msg.attach(MIMEText(body, "plain"))
+
+    if attachment_paths:
+        for filepath in attachment_paths:
+            path = Path(filepath)
+            if not path.exists():
+                logger.warning("Attachment not found, skipping: %s", filepath)
+                continue
+            with open(path, "rb") as f:
+                part = MIMEApplication(f.read(), Name=path.name)
+            part["Content-Disposition"] = f'attachment; filename="{path.name}"'
+            msg.attach(part)
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
+    return {"raw": raw}
+
+
+@mcp.tool()
+def create_draft(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str | None = None,
+    bcc: str | None = None,
+    attachment_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """Create a Gmail draft.
+
+    Args:
+        to: Recipient email address.
+        subject: Email subject line.
+        body: Plain text email body.
+        cc: Optional CC recipient.
+        bcc: Optional BCC recipient.
+        attachment_paths: Optional list of local file paths to attach.
+    """
+    logger.info("create_draft called to=%r subject=%r", to, subject)
+    try:
+        service = get_gmail_service()
+        message = _build_message(
+            to=to, subject=subject, body=body,
+            cc=cc, bcc=bcc, attachment_paths=attachment_paths,
+        )
+        draft = (
+            service.users()
+            .drafts()
+            .create(userId="me", body={"message": message})
+            .execute()
+        )
+        result = {
+            "id": draft.get("id"),
+            "message_id": draft.get("message", {}).get("id"),
+        }
+        logger.info("create_draft succeeded id=%s", result["id"])
+        return result
+    except Exception:
+        logger.exception("create_draft failed")
+        raise
+
+
+@mcp.tool()
+def send_email(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str | None = None,
+    bcc: str | None = None,
+    attachment_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """Send an email immediately.
+
+    Args:
+        to: Recipient email address.
+        subject: Email subject line.
+        body: Plain text email body.
+        cc: Optional CC recipient.
+        bcc: Optional BCC recipient.
+        attachment_paths: Optional list of local file paths to attach.
+    """
+    logger.info("send_email called to=%r subject=%r", to, subject)
+    try:
+        service = get_gmail_service()
+        message = _build_message(
+            to=to, subject=subject, body=body,
+            cc=cc, bcc=bcc, attachment_paths=attachment_paths,
+        )
+        sent = (
+            service.users()
+            .messages()
+            .send(userId="me", body=message)
+            .execute()
+        )
+        result = {
+            "id": sent.get("id"),
+            "threadId": sent.get("threadId"),
+        }
+        logger.info("send_email succeeded id=%s", result["id"])
+        return result
+    except Exception:
+        logger.exception("send_email failed")
+        raise
 
 
 @mcp.tool()
