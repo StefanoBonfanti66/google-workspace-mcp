@@ -54,11 +54,9 @@ mcp = FastMCP("google-gmail")
 
 def get_gmail_service():
     logger.info("Initializing Gmail service")
-    account = os.environ.get("GMAIL_ACCOUNT", "default")
-    # Derive a unique token prefix per account (e.g. "gmail_info", "gmail_personal")
-    account_slug = account.split("@")[0].replace(".", "_")
-    token_prefix = f"gmail_{account_slug}"
-    logger.info("Using token prefix=%s for account=%s", token_prefix, account)
+    account_label = os.environ.get("GMAIL_ACCOUNT", "default")
+    token_prefix = f"gmail_{account_label}"
+    logger.info("Using token prefix=%s for account=%s", token_prefix, account_label)
     auth = GoogleAuth(
         client_secrets_file=str(CLIENT_SECRETS),
         scopes=SCOPES,
