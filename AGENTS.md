@@ -18,4 +18,4 @@
 - `gmail_server/main.py` — modificato (nuove funzioni: `list_labels`, `apply_label`, `remove_label`)
 - `scripts/bootstrap_gmail_token.py` — modificato (scope modify + labels)
 
-**Prossimi possibili step:** implementare `auto_reply` o `manage_filters`.
+**Prossimi possibili step:** implementare `manage_filters`.

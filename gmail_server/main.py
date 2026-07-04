@@ -48,6 +48,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.labels",
+    "https://www.googleapis.com/auth/gmail.settings.basic",
 ]
 CLIENT_SECRETS = PROJECT_ROOT / "client_secrets.json"
 
@@ -490,6 +491,67 @@ def remove_label(message_id: str, label_name: str) -> dict[str, Any]:
         return result
     except Exception:
         logger.exception("remove_label failed")
+        raise
+
+
+@mcp.tool()
+def get_auto_reply() -> dict[str, Any]:
+    """Get the current auto-reply (vacation responder) settings."""
+    logger.info("get_auto_reply called")
+    try:
+        service = get_gmail_service()
+        vac = service.users().settings().getVacation(userId="me").execute()
+        logger.info("get_auto_reply succeeded: %s", vac)
+        return dict(vac)
+    except Exception:
+        logger.exception("get_auto_reply failed")
+        raise
+
+
+@mcp.tool()
+def set_auto_reply(
+    enabled: bool,
+    message: str,
+    subject: str | None = None,
+    restrict_to_contacts: bool = False,
+    restrict_to_domain: bool = False,
+    start_time: int | None = None,
+    end_time: int | None = None,
+) -> dict[str, Any]:
+    """Set auto-reply (vacation responder) settings.
+
+    Args:
+        enabled: Whether auto-reply is enabled.
+        message: Plain text auto-reply message.
+        subject: Optional subject line for the auto-reply.
+        restrict_to_contacts: Only send auto-reply to contacts.
+        restrict_to_domain: Only send auto-reply to users in the same domain.
+        start_time: Optional Unix timestamp (seconds) for when to start.
+        end_time: Optional Unix timestamp (seconds) for when to end.
+    """
+    logger.info("set_auto_reply called enabled=%s", enabled)
+    try:
+        service = get_gmail_service()
+        body: dict[str, Any] = {
+            "enableAutoReply": enabled,
+            "responseBodyPlainText": message,
+        }
+        if subject is not None:
+            body["responseSubject"] = subject
+        if restrict_to_contacts:
+            body["restrictToContacts"] = True
+        if restrict_to_domain:
+            body["restrictToDomain"] = True
+        if start_time is not None:
+            body["startTime"] = start_time
+        if end_time is not None:
+            body["endTime"] = end_time
+
+        vac = service.users().settings().updateVacation(userId="me", body=body).execute()
+        logger.info("set_auto_reply succeeded: %s", vac)
+        return dict(vac)
+    except Exception:
+        logger.exception("set_auto_reply failed")
         raise
 
 
