@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 import sys
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -53,10 +54,15 @@ mcp = FastMCP("google-gmail")
 
 def get_gmail_service():
     logger.info("Initializing Gmail service")
+    account = os.environ.get("GMAIL_ACCOUNT", "default")
+    # Derive a unique token prefix per account (e.g. "gmail_info", "gmail_personal")
+    account_slug = account.split("@")[0].replace(".", "_")
+    token_prefix = f"gmail_{account_slug}"
+    logger.info("Using token prefix=%s for account=%s", token_prefix, account)
     auth = GoogleAuth(
         client_secrets_file=str(CLIENT_SECRETS),
         scopes=SCOPES,
-        token_prefix="gmail",
+        token_prefix=token_prefix,
     )
     creds = auth.get_credentials()
     logger.info("Google credentials loaded successfully")
