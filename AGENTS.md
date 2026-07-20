@@ -21,8 +21,6 @@
 - Creato lo script `scripts/bootstrap_drive_token.py` per l'autorizzazione di Drive ed eseguito il bootstrap iniziale
 
 **Stato working tree:**
-- `drive_server/main.py` — modificato
-- `scripts/bootstrap_drive_token.py` — aggiunto
-- `AGENTS.md` — modificato
+- pulito
 
 **Prossimi possibili step:** Abilitare le API di Google Drive sulla Google Cloud Console e rieseguire la ricerca della fattura.
