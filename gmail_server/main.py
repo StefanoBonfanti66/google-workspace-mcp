@@ -555,6 +555,161 @@ def set_auto_reply(
         raise
 
 
+def _find_label_id(service, label_name: str) -> str | None:
+    """Find a Gmail label ID by its name, returning None if not found."""
+    logger.info("Finding label name=%r", label_name)
+    try:
+        res = service.users().labels().list(userId="me").execute()
+        labels = res.get("labels", []) or []
+        for lbl in labels:
+            if lbl["name"] == label_name:
+                return lbl["id"]
+        return None
+    except Exception:
+        logger.exception("Failed to search label ID for name=%r", label_name)
+        return None
+
+
+@mcp.tool()
+def list_filters() -> list[dict[str, Any]]:
+    """List all Gmail filters."""
+    logger.info("list_filters called")
+    try:
+        service = get_gmail_service()
+        res = service.users().settings().filters().list(userId="me").execute()
+        filters = res.get("filter", []) or []
+        logger.info("list_filters returned %s filters", len(filters))
+        return filters
+    except Exception:
+        logger.exception("list_filters failed")
+        raise
+
+
+@mcp.tool()
+def create_filter(
+    from_address: str | None = None,
+    to_address: str | None = None,
+    subject: str | None = None,
+    query: str | None = None,
+    negated_query: str | None = None,
+    has_attachment: bool | None = None,
+    exclude_chats: bool | None = None,
+    size: int | None = None,
+    size_comparison: str | None = None,
+    add_label_names: list[str] | None = None,
+    remove_label_names: list[str] | None = None,
+    add_label_ids: list[str] | None = None,
+    remove_label_ids: list[str] | None = None,
+    forward: str | None = None,
+) -> dict[str, Any]:
+    """Create a Gmail filter.
+
+    Args:
+        from_address: Filter emails from this sender.
+        to_address: Filter emails sent to this address.
+        subject: Filter emails with this word/phrase in the subject.
+        query: General query to match (standard Gmail query syntax).
+        negated_query: General query that must NOT match.
+        has_attachment: True to filter emails with attachments.
+        exclude_chats: True to exclude chats.
+        size: Size in bytes to compare.
+        size_comparison: 'larger' or 'smaller'.
+        add_label_names: List of label names to add to matching emails (will be created/resolved to IDs).
+        remove_label_names: List of label names to remove from matching emails (unresolved names will be ignored).
+        add_label_ids: List of label IDs to add (e.g. ['IMPORTANT', 'STARRED']).
+        remove_label_ids: List of label IDs to remove (e.g. ['INBOX'] to archive).
+        forward: Verified email address to forward matching emails to.
+    """
+    logger.info("create_filter called")
+    try:
+        service = get_gmail_service()
+        
+        # Build criteria
+        criteria: dict[str, Any] = {}
+        if from_address is not None:
+            criteria["from"] = from_address
+        if to_address is not None:
+            criteria["to"] = to_address
+        if subject is not None:
+            criteria["subject"] = subject
+        if query is not None:
+            criteria["query"] = query
+        if negated_query is not None:
+            criteria["negatedQuery"] = negated_query
+        if has_attachment is not None:
+            criteria["hasAttachment"] = has_attachment
+        if exclude_chats is not None:
+            criteria["excludeChats"] = exclude_chats
+        if size is not None:
+            criteria["size"] = size
+        if size_comparison is not None:
+            criteria["sizeComparison"] = size_comparison
+
+        # Build action
+        action: dict[str, Any] = {}
+        
+        final_add_label_ids = set(add_label_ids or [])
+        final_remove_label_ids = set(remove_label_ids or [])
+        
+        # Resolve add label names
+        if add_label_names:
+            for name in add_label_names:
+                lbl_id = _resolve_label_id(service, name)
+                final_add_label_ids.add(lbl_id)
+                
+        # Resolve remove label names
+        if remove_label_names:
+            for name in remove_label_names:
+                lbl_id = _find_label_id(service, name)
+                if lbl_id:
+                    final_remove_label_ids.add(lbl_id)
+                else:
+                    logger.warning("remove_label_name %r could not be resolved, ignoring", name)
+                    
+        if final_add_label_ids:
+            action["addLabelIds"] = list(final_add_label_ids)
+        if final_remove_label_ids:
+            action["removeLabelIds"] = list(final_remove_label_ids)
+        if forward is not None:
+            action["forward"] = forward
+
+        if not criteria:
+            raise ValueError("At least one criteria parameter must be provided to create a filter.")
+        if not action:
+            raise ValueError("At least one action (labels to add/remove, or forward address) must be provided.")
+
+        body = {
+            "criteria": criteria,
+            "action": action
+        }
+        
+        logger.info("Sending create filter request with body: %s", body)
+        created = service.users().settings().filters().create(userId="me", body=body).execute()
+        logger.info("create_filter succeeded id=%s", created.get("id"))
+        return created
+    except Exception:
+        logger.exception("create_filter failed")
+        raise
+
+
+@mcp.tool()
+def delete_filter(filter_id: str) -> dict[str, str]:
+    """Delete a Gmail filter by ID.
+
+    Args:
+        filter_id: The unique ID of the filter to delete.
+    """
+    logger.info("delete_filter called filter_id=%s", filter_id)
+    try:
+        service = get_gmail_service()
+        service.users().settings().filters().delete(userId="me", id=filter_id).execute()
+        logger.info("delete_filter succeeded filter_id=%s", filter_id)
+        return {"status": "success", "filter_id": filter_id}
+    except Exception:
+        logger.exception("delete_filter failed filter_id=%s", filter_id)
+        raise
+
+
 if __name__ == "__main__":
     try:
         logger.info("google-gmail MCP server started successfully")

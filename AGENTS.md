@@ -13,9 +13,11 @@
 - Rigenerati token OAuth per account `info` e `personal` con nuovi scopes
 - Testati `list_labels`, `apply_label`, `remove_label` (tutti funzionanti)
 - Committato e pushato
+- Implementati `list_filters`, `create_filter`, `delete_filter` in `gmail_server/main.py` per la gestione dei filtri
+- Testati `list_filters`, `create_filter`, `delete_filter` con successo tramite script di test locale
 
 **Stato working tree:**
-- `gmail_server/main.py` — modificato (nuove funzioni: `list_labels`, `apply_label`, `remove_label`)
-- `scripts/bootstrap_gmail_token.py` — modificato (scope modify + labels)
+- `gmail_server/main.py` — modificato (aggiunti `list_filters`, `create_filter`, `delete_filter` e helper `_find_label_id`)
+- `AGENTS.md` — modificato
 
-**Prossimi possibili step:** implementare `manage_filters`.
+**Prossimi possibili step:** Committare e pushtare le modifiche.
