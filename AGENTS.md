@@ -15,9 +15,9 @@
 - Committato e pushato
 - Implementati `list_filters`, `create_filter`, `delete_filter` in `gmail_server/main.py` per la gestione dei filtri
 - Testati `list_filters`, `create_filter`, `delete_filter` con successo tramite script di test locale
+- Committato e pushato
 
 **Stato working tree:**
-- `gmail_server/main.py` — modificato (aggiunti `list_filters`, `create_filter`, `delete_filter` e helper `_find_label_id`)
-- `AGENTS.md` — modificato
+- pulito
 
-**Prossimi possibili step:** Committare e pushtare le modifiche.
+**Prossimi possibili step:** definire nuove caratteristiche da aggiungere o procedere con altri server.
