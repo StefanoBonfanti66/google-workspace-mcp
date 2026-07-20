@@ -15,6 +15,7 @@
 - Committato e pushato
 - Implementati `list_filters`, `create_filter`, `delete_filter` in `gmail_server/main.py` per la gestione dei filtri
 - Testati `list_filters`, `create_filter`, `delete_filter` con successo tramite script di test locale
+- Aggiunto lo script di test CLI [scripts/test_filters_cli.py](file:///home/sbonfanti/Scrivania/Progetti/google-workspace-mcp/scripts/test_filters_cli.py) per permettere all'utente di ispezionare i propri filtri
 - Committato e pushato
 
 **Stato working tree:**
